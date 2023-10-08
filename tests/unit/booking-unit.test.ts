@@ -8,7 +8,7 @@ import {
     TicketStatus,
     TicketType,
   } from '@prisma/client';
-
+  import faker from '@faker-js/faker';
   import {
     createBooking,
     createEnrollmentWithAddress,
@@ -25,7 +25,41 @@ import {
   import { ticketsRepository } from '@/repositories';
   import { bookingRepository } from '@/repositories/booking-repository';
   import { TicketTypeTicket } from '@/protocols';
-import faker from '@faker-js/faker';
+  
+  // Função utilitária para criar um usuário de teste
+  const createMockUser = async (): Promise<User> => {
+    return await createUser();
+  };
+  
+  // Função utilitária para criar uma matrícula de teste
+  const createMockEnrollment = async (user: User): Promise<Enrollment> => {
+    return await createEnrollmentWithAddress(user);
+  };
+  
+  // Função utilitária para criar um tipo de ticket de teste
+  const createMockTicketType = async (): Promise<TicketType> => {
+    return await createTicketHotel();
+  };
+  
+  // Função utilitária para criar um ticket de teste e associar um pagamento
+  const createMockTicketWithPayment = async (
+    enrollmentId: number,
+    ticketTypeId: number,
+    status: TicketStatus
+  ): Promise<Ticket> => {
+    const mockTicketType = await createMockTicketType();
+    const mockTicket = await createTicket(enrollmentId, ticketTypeId, status);
+    await createPayment(mockTicket.id, mockTicketType.price);
+  
+    return mockTicket;
+  };
+  
+  // Função utilitária para criar um hotel e um quarto de teste
+  const createMockHotelAndRoom = async (): Promise<[Hotel, Room]> => {
+    const hotel = await createHotel();
+    const room = await createRoomWithHotelId(hotel.id);
+    return [hotel, room];
+  };
   
   beforeAll(async () => {
     await init();
@@ -34,36 +68,6 @@ import faker from '@faker-js/faker';
   beforeEach(async () => {
     await cleanDb();
   });
-  
-  const createMockUser = async (): Promise<User> => {
-    return await createUser();
-  };
-  
-  const createMockEnrollment = async (user: User): Promise<Enrollment> => {
-    return await createEnrollmentWithAddress(user);
-  };
-  
-  const createMockTicketType = async (): Promise<TicketType> => {
-    return await createTicketHotel();
-  };
-  
-  const createMockTicket = async (
-    enrollmentId: number,
-    ticketTypeId: number,
-    status: TicketStatus
-  ): Promise<Ticket> => {
-    const mockTicketType = await createMockTicketType();
-    const ticket = await createTicket(enrollmentId, ticketTypeId, status);
-    await createPayment(ticket.id, mockTicketType.price);
-  
-    return ticket;
-  };
-  
-  const createMockHotelAndRoom = async (): Promise<[Hotel, Room]> => {
-    const hotel = await createHotel();
-    const room = await createRoomWithHotelId(hotel.id);
-    return [hotel, room];
-  };
   
   describe('All unit tests', () => {
     beforeEach(() => {
@@ -92,17 +96,18 @@ import faker from '@faker-js/faker';
     ])('should throw an error when %s', async ({ ticketStatus, includesHotel, expectedError }) => {
       const mockUser = await createMockUser();
       const mockEnrollment = await createMockEnrollment(mockUser);
-      const mockTicket = await createMockTicket(mockEnrollment.id, 1, ticketStatus);
+      const mockTicketType = await createMockTicketType();
+      const mockTicket = await createMockTicketWithPayment(mockEnrollment.id, mockTicketType.id, ticketStatus);
       const [mockHotel, mockRoom] = await createMockHotelAndRoom();
       const mockBooking = await createBooking(mockUser.id, mockRoom.id);
   
       const ticket: TicketTypeTicket = {
         id: mockBooking.id,
-        ticketTypeId: 1,
+        ticketTypeId: mockTicketType.id,
         enrollmentId: mockEnrollment.id,
         status: ticketStatus,
         TicketType: {
-          id: 1,
+          id: mockTicketType.id,
           name: faker.name.findName(),
           price: faker.datatype.number(),
           isRemote: true,

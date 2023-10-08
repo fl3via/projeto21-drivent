@@ -21,7 +21,7 @@ export async function createTicket(enrollmentId: number, ticketTypeId: number, s
   });
 
   if (!ticketType) {
-    throw new Error(`TicketType with ID ${ticketTypeId} not found.`);
+    throw Error(`TicketType with ID ${ticketTypeId} not found.`);
   }
 
   
